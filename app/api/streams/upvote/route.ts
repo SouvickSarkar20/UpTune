@@ -1,41 +1,49 @@
+
+import { authOptions } from "@/app/lib/auth-options";
 import { prismaClient } from "@/app/lib/db";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-const createDownVoteSchema = z.object({
-    streamId : z.string()
-})
+const UpvoteSchema = z.object({
+    streamId: z.string(),
+    spaceId: z.string()
+});
+
 export async function POST(req: NextRequest) {
-    const session = await getServerSession();
-    const user = await prismaClient.user.findFirst({
-        where: {
-            email: session?.user?.email || ""
-        }
-    })
+    const session = await getServerSession(authOptions);
 
-    if (!user) {
-        return NextResponse.json({
-            message: "User could not be found in the database"
-        }, {
-            status: 404
-        })
+    if (!session?.user) {
+        return NextResponse.json(
+            {
+                message: "Unauthenticated",
+            },
+            {
+                status: 403,
+            },
+        );
     }
+    const user = session.user;
 
-    try{
-        const data = createDownVoteSchema.parse(await req.json());
+    try {
+        const data = UpvoteSchema.parse(await req.json());
         await prismaClient.upvote.create({
-            data : {
-                userId : user.id,
-                streamId : data.streamId
-            }
-        })
-    }
-    catch(err){
+            data: {
+                userId: user.id,
+                streamId: data.streamId,
+            },
+        });
         return NextResponse.json({
-            message : err
-        },{
-            status : 404
-        })
+            message: "Done!",
+        });
+    } catch (e) {
+        return NextResponse.json(
+            {
+                message: "Error while upvoting",
+            },
+            {
+                status: 403,
+            },
+        );
     }
 }
